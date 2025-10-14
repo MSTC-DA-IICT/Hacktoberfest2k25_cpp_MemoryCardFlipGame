@@ -142,9 +142,7 @@ Look for issues labeled with:
 
 ### Getting Help
 
-- 💬 **Discussions**: Use [GitHub Discussions](https://github.com/MSTC-DA-IICT/memory-card-game/discussions)
-- 🐛 **Bug Reports**: Open an [Issue](https://github.com/MSTC-DA-IICT/memory-card-game/issues)
-- 📧 **Email**: Contact us at `microsoftclub@daiict.ac.in`
+- 📧 **Email**: Contact us at `microsoftclub@dau.ac.in`
 
 Read our full [Contributing Guidelines](CONTRIBUTING.md) for detailed information.
 
@@ -153,8 +151,8 @@ Read our full [Contributing Guidelines](CONTRIBUTING.md) for detailed informatio
 This project is maintained by the **Microsoft Student Technical Club (MSTC)** at **Dhirubhai Ambani Institute of Information and Communication Technology (DA-IICT)**.
 
 - 🌐 **Website**: [mstc.daiict.ac.in](http://mstc.daiict.ac.in)
-- 💼 **LinkedIn**: [MSTC DA-IICT](https://www.linkedin.com/company/mstc-da-iict/)
-- 📧 **Email**: microsoftclub@daiict.ac.in
+- 💼 **LinkedIn**: [MSTC DA-IICT]([https://www.linkedin.com/company/mstc-da-iict/](https://in.linkedin.com/company/microsoft-student-technical-club-da-iict))
+- 📧 **Email**: microsoftclub@dau.ac.in
 
 ### Our Mission
 We aim to foster **open-source development**, provide **learning opportunities**, and build a **collaborative community** of tech enthusiasts.
