@@ -1,0 +1,226 @@
+# Memory Card Game - .gitignore
+# MSTC DA-IICT Hacktoberfest 2025 Project
+
+# Build directories
+build/
+Build/
+debug/
+Debug/
+release/
+Release/
+out/
+bin/
+lib/
+
+# CMake generated files
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+*.cmake
+!CMakeLists.txt
+CTestTestfile.cmake
+Testing/
+
+# Visual Studio / VS Code
+.vs/
+.vscode/
+*.vcxproj*
+*.sln
+*.user
+*.ncb
+*.suo
+*.pdb
+*.ilk
+
+# CLion
+.idea/
+cmake-build-*/
+
+# Code::Blocks
+*.depend
+*.layout
+*.cbp
+
+# Dev-C++
+*.dev
+
+# Compiled Object files
+*.o
+*.obj
+*.ko
+*.elf
+
+# Executables
+*.exe
+*.out
+*.app
+*.dSYM/
+memory_game
+memory_game.exe
+memory_card_game
+memory_card_game.exe
+
+# Libraries
+*.lib
+*.a
+*.la
+*.lo
+*.dll
+*.so
+*.so.*
+*.dylib
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.dll
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
+
+# Generated documentation
+doc/
+docs/html/
+docs/latex/
+
+# Package managers
+conan.lock
+conanbuildinfo.*
+conaninfo.txt
+
+# vcpkg
+vcpkg_installed/
+.vcpkg-root
+
+# Operating System Files
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.Spotlight-V100
+.Trashes
+
+# Linux
+*~
+.directory
+.Trash-*
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# Log files
+*.log
+*.txt
+game.log
+debug.log
+
+# Coverage files
+*.gcov
+*.gcno
+*.gcda
+coverage.xml
+coverage/
+
+# Profiling
+*.prof
+gmon.out
+
+# Memory debugging
+*.memcheck
+valgrind.log
+
+# Game-specific generated files
+highscores.dat
+settings.cfg
+save_*.json
+
+# Asset backup files
+*.bak
+*.orig
+
+# Compressed files (unless they are assets)
+*.zip
+*.rar
+*.7z
+*.tar
+*.tar.gz
+*.tgz
+
+# IDE-specific files
+.clangd/
+compile_commands.json
+.ccls-cache/
+
+# Custom build scripts output
+install/
+package/
+
+# Testing output
+test_results/
+*.xml
+
+# Clang tools
+.clang-format
+.clang-tidy
+
+# AddressSanitizer
+*.asan
+
+# ThreadSanitizer  
+*.tsan
+
+# UndefinedBehaviorSanitizer
+*.ubsan
+
+# Backup files created by text editors
+*~
+*.orig
+*.rej
+
+# Python (if using any Python scripts)
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Keep these files/directories
+!assets/
+!src/
+!include/
+!tests/
+!docs/README.md
+!*.md
+!*.txt
+!LICENSE
+
+# Keep specific asset files
+!assets/**/*.png
+!assets/**/*.jpg
+!assets/**/*.jpeg
+!assets/**/*.wav
+!assets/**/*.ogg
+!assets/**/*.ttf
+!assets/**/*.otf
