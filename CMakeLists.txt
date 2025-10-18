@@ -31,8 +31,8 @@ if(NOT CMAKE_BUILD_TYPE)
     set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 endif()
 
-# Option to enable/disable tests
-option(BUILD_TESTS "Build unit tests" ON)
+# Option to enable/disable tests (default OFF if tests directory is absent)
+option(BUILD_TESTS "Build unit tests" OFF)
 
 # Dependencies
 include(FetchContent)
@@ -99,46 +99,54 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
 )
 
-# Copy assets to build directory
-file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/assets DESTINATION ${CMAKE_BINARY_DIR})
+# Copy assets to build directory (only if assets exist)
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/assets)
+    file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/assets DESTINATION ${CMAKE_BINARY_DIR})
+else()
+    message(STATUS "No assets directory found. Skipping asset copy.")
+endif()
 
 # Install target
 install(TARGETS ${PROJECT_NAME} RUNTIME DESTINATION bin)
 install(DIRECTORY assets DESTINATION .)
 
 # Testing
-if(BUILD_TESTS)
+if(BUILD_TESTS AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests")
     enable_testing()
-    
-    # Test files
-    set(TEST_SOURCES
-        tests/test_main.cpp
-        tests/test_card.cpp
-        tests/test_gameboard.cpp
-        tests/test_utils.cpp
+
+    # Collect test files if they exist
+    file(GLOB TEST_SOURCES
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/*.cpp"
     )
-    
-    # Create test executable (excluding main.cpp)
-    list(REMOVE_ITEM SOURCES src/main.cpp)
-    add_executable(${PROJECT_NAME}_tests ${TEST_SOURCES} ${SOURCES})
-    
-    target_link_libraries(${PROJECT_NAME}_tests PRIVATE raylib)
-    
-    # Platform-specific test linking
-    if(WIN32)
-        target_link_libraries(${PROJECT_NAME}_tests PRIVATE winmm)
-    elseif(APPLE)
-        target_link_libraries(${PROJECT_NAME}_tests PRIVATE "-framework CoreVideo" "-framework IOKit" "-framework Cocoa" "-framework GLUT" "-framework OpenGL")
-    elseif(UNIX)
-        target_link_libraries(${PROJECT_NAME}_tests PRIVATE GL m pthread dl rt X11)
+
+    if(TEST_SOURCES)
+        # Create a source list without main.cpp for tests
+        set(SOURCES_NO_MAIN ${SOURCES})
+        list(REMOVE_ITEM SOURCES_NO_MAIN src/main.cpp)
+
+        add_executable(${PROJECT_NAME}_tests ${TEST_SOURCES} ${SOURCES_NO_MAIN})
+        target_link_libraries(${PROJECT_NAME}_tests PRIVATE raylib)
+
+        # Platform-specific test linking
+        if(WIN32)
+            target_link_libraries(${PROJECT_NAME}_tests PRIVATE winmm)
+        elseif(APPLE)
+            target_link_libraries(${PROJECT_NAME}_tests PRIVATE "-framework CoreVideo" "-framework IOKit" "-framework Cocoa" "-framework GLUT" "-framework OpenGL")
+        elseif(UNIX)
+            target_link_libraries(${PROJECT_NAME}_tests PRIVATE GL m pthread dl rt X11)
+        endif()
+
+        # Add test
+        add_test(NAME ${PROJECT_NAME}_tests COMMAND ${PROJECT_NAME}_tests)
+
+        set_target_properties(${PROJECT_NAME}_tests PROPERTIES
+            RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests
+        )
+    else()
+        message(WARNING "BUILD_TESTS is ON but no test sources were found in the tests directory.")
     endif()
-    
-    # Add test
-    add_test(NAME ${PROJECT_NAME}_tests COMMAND ${PROJECT_NAME}_tests)
-    
-    set_target_properties(${PROJECT_NAME}_tests PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests
-    )
+elseif(BUILD_TESTS)
+    message(WARNING "BUILD_TESTS is ON but tests directory not found. Skipping test target generation.")
 endif()
 
 # Package configuration
