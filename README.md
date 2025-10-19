@@ -30,8 +30,8 @@ A classic memory card flip game built with **C++** and **raylib** graphics libra
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/MSTC-DA-IICT/memory-card-game.git
-   cd memory-card-game
+   git clone https://github.com/MSTC-DA-IICT/Hacktoberfest2k25_cpp_MemoryCardFlipGame.git
+   
    ```
 
 2. **Build the project**:
