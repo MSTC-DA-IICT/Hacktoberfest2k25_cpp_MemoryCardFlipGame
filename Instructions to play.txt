@@ -1,0 +1,5 @@
+mkdir build
+cd build
+cmake ..
+cmake --build .
+.\bin\memory_game.exe
