@@ -14,9 +14,11 @@ A classic memory card flip game built with **C++** and **raylib** graphics libra
 
 ## 🚀 To Run
 
+ HEAD
 ```bash
 mkdir build
 cd build
 cmake ..
 cmake --build .
 .\bin\memory_game.exe
+
