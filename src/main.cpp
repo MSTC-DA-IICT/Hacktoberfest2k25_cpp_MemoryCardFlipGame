@@ -20,21 +20,21 @@
 #include "Game.h"
 #include "Utils.h"
 
-// Game configuration constants
 constexpr int SCREEN_WIDTH = 1024;
 constexpr int SCREEN_HEIGHT = 768;
 constexpr int TARGET_FPS = 60;
 constexpr const char* WINDOW_TITLE = "Memory Card Flip Game - MSTC DA-IICT";
 
 int main() {
-    // Initialize raylib window
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, WINDOW_TITLE);
+    // Disable default ESC behavior (raylib closes window on ESC by default)
+    // We'll handle ESC manually in the game's state handlers so settings can
+    // return to the main menu instead of exiting the application.
+    SetExitKey(KEY_NULL);
     SetTargetFPS(TARGET_FPS);
     
-    // Initialize audio system
     InitAudioDevice();
     
-    // Check if audio device is ready
     if (!IsAudioDeviceReady()) {
         Utils::logError("Failed to initialize audio device!");
     }
