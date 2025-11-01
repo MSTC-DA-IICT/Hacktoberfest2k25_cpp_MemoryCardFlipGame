@@ -7,7 +7,7 @@ bool Card::s_defaultTexturesLoaded = false;
 Card::Card(int id, const std::string& texturePath, Vector2 position, Vector2 size)
     : m_id(id), m_position(position), m_size(size), m_state(CardState::FACE_DOWN),
       m_animationProgress(0.0f), m_animationSpeed(FLIP_ANIMATION_SPEED),
-      m_scaleX(1.0f), m_tint(WHITE), m_rotation(0.0f), m_isHovered(false),
+    m_scaleX(1.0f), m_tint(WHITE), m_rotation(0.0f), m_isHovered(false),
       m_texturePath(texturePath)
 {
     if (!s_defaultTexturesLoaded) {
@@ -84,6 +84,23 @@ bool Card::containsPoint(Vector2 point) const {
 }
 
 void Card::update(float deltaTime) {
+    // Update movement first (position lerp)
+    if (m_isMoving) {
+        m_moveTimer += deltaTime;
+        float t = m_moveDuration > 0.0f ? (m_moveTimer / m_moveDuration) : 1.0f;
+        if (t >= 1.0f) {
+            m_position = m_moveTarget;
+            m_isMoving = false;
+            m_moveTimer = 0.0f;
+            m_moveDuration = 0.0f;
+        } else {
+            // ease in-out quad
+            float tt = t < 0.5f ? 2.0f * t * t : -1.0f + (4.0f - 2.0f * t) * t;
+            m_position.x = m_moveStart.x + (m_moveTarget.x - m_moveStart.x) * tt;
+            m_position.y = m_moveStart.y + (m_moveTarget.y - m_moveStart.y) * tt;
+        }
+    }
+
     if (m_state == CardState::FLIPPING_UP) {
         m_animationProgress += deltaTime * m_animationSpeed;
         m_scaleX = 1.0f - m_animationProgress;
@@ -101,6 +118,18 @@ void Card::update(float deltaTime) {
             m_scaleX = 1.0f;
         }
     }
+}
+
+void Card::moveTo(Vector2 target, float duration) {
+    m_moveStart = m_position;
+    m_moveTarget = target;
+    m_moveDuration = duration;
+    m_moveTimer = 0.0f;
+    m_isMoving = true;
+}
+
+bool Card::isMoving() const {
+    return m_isMoving;
 }
 
 void Card::draw() const {
