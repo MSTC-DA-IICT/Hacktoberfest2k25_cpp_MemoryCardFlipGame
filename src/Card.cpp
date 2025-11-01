@@ -14,10 +14,22 @@ Card::Card(int id, const std::string& texturePath, Vector2 position, Vector2 siz
         loadDefaultTextures();
     }
     
-    // Try to load texture from file
+    // Try to load texture from file. If loading fails, fall back to generated texture.
     if (FileExists(texturePath.c_str())) {
-        m_frontTexture = LoadTexture(texturePath.c_str());
-    } else {
+        Texture2D tmp = LoadTexture(texturePath.c_str());
+        if (tmp.width > 0 && tmp.height > 0) {
+            m_frontTexture = tmp;
+        } else {
+            // Loading failed - log and generate fallback
+            Utils::logError(std::string("Failed to load front texture: ") + texturePath + ". Using generated color texture.");
+            // ensure any invalid texture is unloaded
+            if (tmp.id != 0) UnloadTexture(tmp);
+            // fall through to generate
+        }
+    }
+
+    // If front texture not loaded from file, generate a unique colored texture for this card ID
+    if (m_frontTexture.id == 0) {
         // Generate a unique colored texture for this card ID
         Color cardColor = Utils::colorFromHSV(m_id * 30.0f, 0.8f, 0.9f);
         Image frontImg = GenImageColor(static_cast<int>(size.x), static_cast<int>(size.y), cardColor);
@@ -209,19 +221,44 @@ void Card::draw() const {
 // Static method implementations
 void Card::loadDefaultTextures() {
     if (!s_defaultTexturesLoaded) {
-        // Create a small default back texture (will be scaled)
-        int texSize = 100;
-        Image backImg = GenImageColor(texSize, texSize, BLUE);
-        
-        // Draw a pattern on the back (optional decoration)
-        ImageDrawRectangle(&backImg, texSize/10, texSize/10, texSize*8/10, texSize*8/10, DARKBLUE);
-        ImageDrawRectangle(&backImg, texSize/5, texSize/5, texSize*3/5, texSize*3/5, BLUE);
-        
-        s_defaultBackTexture = LoadTextureFromImage(backImg);
-        UnloadImage(backImg);
-        
+        // Prefer using a provided image for the card back if available.
+        const char* preferredPaths[] = {
+            "assets/textures/card_back.png",
+            "assets/textures/card1.png",
+            "assets/textures/back.png",
+            nullptr
+        };
+
+        bool loaded = false;
+        for (int i = 0; preferredPaths[i] != nullptr; ++i) {
+            const char* p = preferredPaths[i];
+            if (FileExists(p)) {
+                Texture2D tmp = LoadTexture(p);
+                if (tmp.width > 0 && tmp.height > 0) {
+                    s_defaultBackTexture = tmp;
+                    loaded = true;
+                    Utils::logInfo(std::string("Loaded card back texture: ") + p);
+                    break;
+                } else {
+                    Utils::logError(std::string("Failed to load back texture: ") + p + " - trying next option");
+                    if (tmp.id != 0) UnloadTexture(tmp);
+                }
+            }
+        }
+
+        if (!loaded) {
+            // Fallback: create a small default back texture (will be scaled)
+            int texSize = 100;
+            Image backImg = GenImageColor(texSize, texSize, BLUE);
+            // Draw a pattern on the back (optional decoration)
+            ImageDrawRectangle(&backImg, texSize/10, texSize/10, texSize*8/10, texSize*8/10, DARKBLUE);
+            ImageDrawRectangle(&backImg, texSize/5, texSize/5, texSize*3/5, texSize*3/5, BLUE);
+            s_defaultBackTexture = LoadTextureFromImage(backImg);
+            UnloadImage(backImg);
+            Utils::logInfo("Generated default card back texture (fallback)");
+        }
+
         s_defaultTexturesLoaded = true;
-        Utils::logInfo("Default card textures loaded successfully");
     }
 }
 
@@ -249,7 +286,13 @@ Card::Card(const Card& other)
 {
     // Load textures for the new card
     if (!other.m_texturePath.empty()) {
-        m_frontTexture = LoadTexture(other.m_texturePath.c_str());
+        Texture2D tmp = LoadTexture(other.m_texturePath.c_str());
+        if (tmp.width > 0 && tmp.height > 0) {
+            m_frontTexture = tmp;
+        } else {
+            Utils::logError(std::string("Copy ctor: failed to load front texture: ") + other.m_texturePath + ". Generating fallback.");
+            if (tmp.id != 0) UnloadTexture(tmp);
+        }
     }
     m_backTexture = s_defaultBackTexture;
 }
@@ -275,7 +318,13 @@ Card& Card::operator=(const Card& other) {
         
         // Load new texture
         if (!other.m_texturePath.empty()) {
-            m_frontTexture = LoadTexture(other.m_texturePath.c_str());
+            Texture2D tmp = LoadTexture(other.m_texturePath.c_str());
+            if (tmp.width > 0 && tmp.height > 0) {
+                m_frontTexture = tmp;
+            } else {
+                Utils::logError(std::string("Copy assign: failed to load front texture: ") + other.m_texturePath + ". Generating fallback.");
+                if (tmp.id != 0) UnloadTexture(tmp);
+            }
         }
         m_backTexture = s_defaultBackTexture;
     }
