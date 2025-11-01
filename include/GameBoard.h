@@ -15,6 +15,11 @@ public:
     void handleClick(Vector2 mousePos);
     bool allMatched() const;
     int getMatchesFound() const { return m_matchesFound; }
+    
+    // Shuffle animation control
+    void startShuffle(float durationSeconds);
+    bool isShuffling() const { return m_isShuffling; }
+    float getShuffleDuration() const { return m_shuffleDuration; }
     void setAudioManager(AudioManager* audioManager) { m_audioManager = audioManager; }
     void setScoreManager(class ScoreManager* scoreManager) { m_scoreManager = scoreManager; }
 
@@ -39,6 +44,17 @@ private:
     void createCards();
     void checkMatch();
     void resetFlippedCards();
+    
+    // Shuffle animation state
+    bool m_isShuffling = false;
+    float m_shuffleDuration = 0.0f;
+    float m_shuffleTimer = 0.0f;
+    // Movement-based shuffle scheduling
+    std::vector<int> m_shuffleOrder; // final order: for each slot index, which original card index will land there
+    std::vector<Vector2> m_shuffleTargets; // target positions per original card index
+    int m_nextShuffleStartIndex = 0; // next index in m_shuffleOrder to begin moving
+    float m_shuffleStartInterval = 0.02f; // stagger between starting each card move
+    float m_shuffleMoveDuration = 0.45f; // duration for each card move
 };
 
 // #pragma once

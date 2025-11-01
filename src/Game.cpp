@@ -100,10 +100,27 @@ void Game::updateDifficultySelection() {
 }
 
 void Game::updatePlaying() {
+    // If the board is running a pre-game shuffle animation, only update the board
+    // and prevent player input until the shuffle finishes. Start the game timer
+    // once shuffling completes.
+    if (m_gameBoard && m_gameBoard->isShuffling()) {
+        bool wasShuffling = m_gameBoard->isShuffling();
+        m_gameBoard->update(GetFrameTime());
+        // If shuffle completed this frame, start the game timer
+        if (wasShuffling && !m_gameBoard->isShuffling() && m_gameStartTime <= 0.0f) {
+            m_gameStartTime = GetTime();
+        }
+        return; // don't process input while shuffling
+    }
+
+    // Normal playing input/update
     handlePlayingInput();
 
     if (m_gameBoard)
         m_gameBoard->update(GetFrameTime());
+
+    // Ensure timer started (in case shuffle was disabled)
+    if (m_gameStartTime <= 0.0f) m_gameStartTime = GetTime();
 
     checkWinCondition();
 }
@@ -486,7 +503,11 @@ void Game::startNewGame(Difficulty difficulty) {
     m_totalMoves = 0;
     m_matchesFound = 0;
     m_gameWon = false;
-    m_gameStartTime = GetTime();
+    // Start pre-game shuffle animation; game timer will begin after shuffle completes
+    if (m_gameBoard) {
+        m_gameBoard->startShuffle(1.8f); // ~1.8 seconds of quick reveals
+    }
+    m_gameStartTime = 0.0f; // will be set after shuffle ends
     
     Utils::logInfo("New game started");
 }
