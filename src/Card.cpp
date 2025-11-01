@@ -101,19 +101,29 @@ void Card::update(float deltaTime) {
         }
     }
 
-    if (m_state == CardState::FLIPPING_UP) {
+    // Flip animation: two-phase (shrink -> swap -> expand)
+    if (m_state == CardState::FLIPPING_UP || m_state == CardState::FLIPPING_DOWN) {
         m_animationProgress += deltaTime * m_animationSpeed;
-        m_scaleX = 1.0f - m_animationProgress;
-        if (m_animationProgress >= 1.0f) {
-            m_state = CardState::FACE_UP;
-            m_animationProgress = 0.0f;
-            m_scaleX = 1.0f;
+        // clamp progress
+        if (m_animationProgress > 1.0f) m_animationProgress = 1.0f;
+
+        // Compute scaleX as shrinking to 0 at progress=0.5 then expanding back to 1
+        float p = m_animationProgress; // 0..1
+        if (p < 0.5f) {
+            // first half: shrink from 1 -> 0
+            m_scaleX = 1.0f - (p / 0.5f);
+        } else {
+            // second half: expand from 0 -> 1
+            m_scaleX = (p - 0.5f) / 0.5f;
         }
-    } else if (m_state == CardState::FLIPPING_DOWN) {
-        m_animationProgress += deltaTime * m_animationSpeed;
-        m_scaleX = 1.0f - m_animationProgress;
+
+        // Finish animation when progress reaches 1.0
         if (m_animationProgress >= 1.0f) {
-            m_state = CardState::FACE_DOWN;
+            if (m_state == CardState::FLIPPING_UP) {
+                m_state = CardState::FACE_UP;
+            } else if (m_state == CardState::FLIPPING_DOWN) {
+                m_state = CardState::FACE_DOWN;
+            }
             m_animationProgress = 0.0f;
             m_scaleX = 1.0f;
         }
@@ -134,26 +144,57 @@ bool Card::isMoving() const {
 
 void Card::draw() const {
     Rectangle rect = getBounds();
+    // If the card is animating a flip, we draw a scaled version (scaleX) and swap
+    // the texture at the midpoint to create a smooth flip illusion.
+    if (m_state == CardState::FLIPPING_UP || m_state == CardState::FLIPPING_DOWN) {
+        float p = m_animationProgress; // 0..1
+        bool showFront = false;
+        if (m_state == CardState::FLIPPING_UP) {
+            showFront = (p >= 0.5f);
+        } else { // FLIPPING_DOWN
+            showFront = (p < 0.5f);
+        }
 
-    if (isRevealed()) {
-        // Draw front texture scaled to card size
-        Rectangle sourceRect = {0, 0, (float)m_frontTexture.width, (float)m_frontTexture.height};
-        Rectangle destRect = {rect.x, rect.y, rect.width, rect.height};
-        DrawTexturePro(m_frontTexture, sourceRect, destRect, {0, 0}, 0.0f, WHITE);
-        
-        // Draw card ID number on front
-        std::string idText = std::to_string(m_id);
-        int fontSize = static_cast<int>(rect.height * 0.4f); // Scale font with card size
-        int textWidth = MeasureText(idText.c_str(), fontSize);
-        DrawText(idText.c_str(), 
-                 static_cast<int>(rect.x + rect.width / 2 - textWidth / 2), 
-                 static_cast<int>(rect.y + rect.height / 2 - fontSize / 2), 
-                 fontSize, BLACK);
+        // Compute destination rect centered with scaled width
+        float drawWidth = rect.width * std::max(0.001f, m_scaleX);
+        float drawX = rect.x + (rect.width - drawWidth) * 0.5f;
+        Rectangle sourceRect = {0, 0, (float)(showFront ? m_frontTexture.width : m_backTexture.width), (float)(showFront ? m_frontTexture.height : m_backTexture.height)};
+        Rectangle destRect = { drawX, rect.y, drawWidth, rect.height };
+        if (showFront) {
+            DrawTexturePro(m_frontTexture, sourceRect, destRect, {0,0}, 0.0f, WHITE);
+            // draw id text when front is visible and scale is reasonably large
+            if (m_scaleX > 0.35f) {
+                std::string idText = std::to_string(m_id);
+                int fontSize = static_cast<int>(rect.height * 0.4f);
+                int textWidth = MeasureText(idText.c_str(), fontSize);
+                DrawText(idText.c_str(), 
+                         static_cast<int>(rect.x + rect.width / 2 - textWidth / 2), 
+                         static_cast<int>(rect.y + rect.height / 2 - fontSize / 2), 
+                         fontSize, BLACK);
+            }
+        } else {
+            DrawTexturePro(m_backTexture, sourceRect, destRect, {0,0}, 0.0f, WHITE);
+        }
     } else {
-        // Draw back texture scaled to card size
-        Rectangle sourceRect = {0, 0, (float)m_backTexture.width, (float)m_backTexture.height};
-        Rectangle destRect = {rect.x, rect.y, rect.width, rect.height};
-        DrawTexturePro(m_backTexture, sourceRect, destRect, {0, 0}, 0.0f, WHITE);
+        // Not animating: draw normally depending on revealed state
+        if (isRevealed()) {
+            Rectangle sourceRect = {0, 0, (float)m_frontTexture.width, (float)m_frontTexture.height};
+            Rectangle destRect = {rect.x, rect.y, rect.width, rect.height};
+            DrawTexturePro(m_frontTexture, sourceRect, destRect, {0, 0}, 0.0f, WHITE);
+
+            // Draw card ID number on front
+            std::string idText = std::to_string(m_id);
+            int fontSize = static_cast<int>(rect.height * 0.4f); // Scale font with card size
+            int textWidth = MeasureText(idText.c_str(), fontSize);
+            DrawText(idText.c_str(), 
+                     static_cast<int>(rect.x + rect.width / 2 - textWidth / 2), 
+                     static_cast<int>(rect.y + rect.height / 2 - fontSize / 2), 
+                     fontSize, BLACK);
+        } else {
+            Rectangle sourceRect = {0, 0, (float)m_backTexture.width, (float)m_backTexture.height};
+            Rectangle destRect = {rect.x, rect.y, rect.width, rect.height};
+            DrawTexturePro(m_backTexture, sourceRect, destRect, {0, 0}, 0.0f, WHITE);
+        }
     }
 
     // Draw border
