@@ -731,6 +731,7 @@
 #include "../include/AudioManager.h"
 #include "../include/ScoreManager.h"
 #include <iostream>
+#include <algorithm>
 
 GameBoard::GameBoard(int rows, int cols, Vector2 cardSize, float padding, Rectangle screenBounds)
     : m_rows(rows), 
@@ -748,6 +749,48 @@ GameBoard::GameBoard(int rows, int cols, Vector2 cardSize, float padding, Rectan
 {
     Utils::logInfo("GameBoard constructor called");
     createCards();
+}
+
+void GameBoard::startShuffle(float durationSeconds) {
+    if (m_cards.empty()) return;
+    m_isShuffling = true;
+    m_shuffleDuration = durationSeconds;
+    m_shuffleTimer = 0.0f;
+    m_nextShuffleStartIndex = 0;
+
+    // Compute grid slot positions
+    int n = static_cast<int>(m_cards.size());
+    std::vector<Vector2> slotPositions; slotPositions.reserve(n);
+    for (int y = 0; y < m_rows; ++y) {
+        for (int x = 0; x < m_cols; ++x) {
+            Vector2 pos = { 
+                m_screenBounds.x + x * (m_cardSize.x + m_padding),
+                m_screenBounds.y + y * (m_cardSize.y + m_padding)
+            };
+            slotPositions.push_back(pos);
+        }
+    }
+
+    // Create a shuffled list of slot positions and assign targets per current card index
+    std::vector<int> shuffledSlots(n);
+    for (int i = 0; i < n; ++i) shuffledSlots[i] = i;
+    Utils::shuffle(shuffledSlots);
+
+    m_shuffleTargets.clear();
+    m_shuffleTargets.resize(n);
+    for (int i = 0; i < n; ++i) {
+        int slotIdx = shuffledSlots[i];
+        m_shuffleTargets[i] = slotPositions[slotIdx];
+    }
+
+    // Ensure all non-matched cards are face-down before moving
+    for (auto& card : m_cards) {
+        if (!card->isMatched() && card->getState() == CardState::FACE_UP) {
+            card->flipDown();
+        }
+    }
+
+    Utils::logInfo("Position shuffle started: duration=" + Utils::toString(m_shuffleDuration) + " cards=" + Utils::toString(n));
 }
 
 void GameBoard::createCards() {
@@ -773,6 +816,47 @@ void GameBoard::update(float deltaTime) {
     // Update all cards
     for (auto& card : m_cards) {
         card->update(deltaTime);
+    }
+
+    // Handle position-based shuffle animation
+    if (m_isShuffling) {
+        m_shuffleTimer += deltaTime;
+
+        int n = static_cast<int>(m_cards.size());
+
+        // Start moves in a staggered fashion based on start interval
+        while (m_nextShuffleStartIndex < n && m_shuffleTimer >= m_nextShuffleStartIndex * m_shuffleStartInterval) {
+            int idx = m_nextShuffleStartIndex;
+            if (idx >= 0 && idx < n) {
+                if (!m_cards[idx]->isMatched()) {
+                    m_cards[idx]->moveTo(m_shuffleTargets[idx], m_shuffleMoveDuration);
+                }
+            }
+            m_nextShuffleStartIndex++;
+        }
+
+        // Check if all moves have been started and completed
+        if (m_nextShuffleStartIndex >= n) {
+            bool anyMoving = false;
+            for (auto& card : m_cards) {
+                if (card->isMoving()) {
+                    anyMoving = true;
+                    break;
+                }
+            }
+
+            // End shuffle when no cards are moving
+            if (!anyMoving) {
+                m_isShuffling = false;
+                m_shuffleTimer = 0.0f;
+                m_nextShuffleStartIndex = 0;
+                m_shuffleTargets.clear();
+                Utils::logInfo("Position shuffle completed");
+            }
+        }
+
+        // While shuffling, do not process match flipback logic or accept clicks
+        return;
     }
     
     // Handle flip-back timer for non-matching cards

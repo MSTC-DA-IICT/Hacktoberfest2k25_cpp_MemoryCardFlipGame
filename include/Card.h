@@ -171,6 +171,10 @@ public:
      */
     void setSize(Vector2 size);
 
+    // Movement API (public so GameBoard can orchestrate shuffles)
+    void moveTo(Vector2 target, float duration);
+    bool isMoving() const;
+
 private:
     // Card properties
     int m_id;                    ///< Unique identifier for matching
@@ -187,6 +191,12 @@ private:
     float m_animationProgress;   ///< Progress of current animation (0.0 to 1.0)
     float m_animationSpeed;      ///< Speed of flip animation
     float m_scaleX;              ///< Current X scale for flip animation
+    // Movement animation
+    bool m_isMoving = false;     ///< Is the card currently moving between positions
+    Vector2 m_moveStart;         ///< Start position for move
+    Vector2 m_moveTarget;        ///< Target position for move
+    float m_moveTimer = 0.0f;    ///< Elapsed time for move
+    float m_moveDuration = 0.0f; ///< Duration of move
     
     // Visual properties
     Color m_tint;                ///< Color tint for the card
@@ -210,6 +220,7 @@ private:
     // Static methods for managing shared resources
     static void loadDefaultTextures();
     static void unloadDefaultTextures();
+    // Movement state is maintained above; methods are public
     
     // Animation constants
     static constexpr float FLIP_ANIMATION_SPEED = 8.0f;
