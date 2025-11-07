@@ -136,6 +136,10 @@ private:
     bool m_gameWon;
     // Settings
     bool m_soundEnabled;
+    int m_shufflesUsed;
+    float m_shuffleCooldownTimer;
+    static constexpr float SHUFFLE_COOLDOWN_SECONDS = 25.0f;
+    static constexpr float SHUFFLE_INITIAL_DELAY_SECONDS = 3.0f;
     
     // Private methods for different game states
     void updateMainMenu();
@@ -184,6 +188,8 @@ private:
     void unloadResources();
     void checkWinCondition();
     float getElapsedTime() const;
+    bool canTriggerShuffle() const;
+    void triggerShuffle();
     
     // Menu configuration
     static constexpr int MAIN_MENU_ITEMS = 4;

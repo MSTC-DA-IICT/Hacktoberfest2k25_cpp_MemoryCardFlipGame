@@ -88,6 +88,9 @@ public:
     static Color colorLerp(Color color1, Color color2, float t);
     static Color colorFromHSV(float hue, float saturation, float value);
     static Color adjustBrightness(Color color, float factor);
+    
+    // === DRAWING UTILITIES ===
+    static void drawRoundedRectangleLines(Rectangle rec, float roundness, int segments, float lineThick, Color color);
 
     // === GAME-SPECIFIC UTILITIES ===
     static Vector2 calculateGridDimensions(int numCards);

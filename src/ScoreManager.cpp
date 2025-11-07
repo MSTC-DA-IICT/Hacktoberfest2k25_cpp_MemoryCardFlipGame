@@ -11,9 +11,10 @@ ScoreManager::ScoreManager()
 
 void ScoreManager::addMove() { m_moves++; }
 
-void ScoreManager::addMatch() {
+void ScoreManager::addMatch(int comboMultiplier) {
 	m_matches++;
-	m_score += 10; // +10 for a match
+	int baseScore = 10;
+	m_score += baseScore * comboMultiplier; // Apply combo multiplier
 }
 
 void ScoreManager::addMismatch() {

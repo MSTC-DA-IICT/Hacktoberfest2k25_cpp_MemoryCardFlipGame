@@ -5,7 +5,7 @@ class ScoreManager {
 public:
     ScoreManager();
     void addMove();
-    void addMatch();
+    void addMatch(int comboMultiplier = 1);
     void addMismatch();
     void resetScore();
 
