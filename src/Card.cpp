@@ -113,20 +113,26 @@ void Card::update(float deltaTime) {
         }
     }
 
-    // Flip animation: two-phase (shrink -> swap -> expand)
+    // Flip animation: two-phase (shrink -> swap -> expand) with smooth easing
     if (m_state == CardState::FLIPPING_UP || m_state == CardState::FLIPPING_DOWN) {
         m_animationProgress += deltaTime * m_animationSpeed;
         // clamp progress
         if (m_animationProgress > 1.0f) m_animationProgress = 1.0f;
 
         // Compute scaleX as shrinking to 0 at progress=0.5 then expanding back to 1
+        // Use smooth easing function for more natural animation
         float p = m_animationProgress; // 0..1
+        float eased;
         if (p < 0.5f) {
-            // first half: shrink from 1 -> 0
-            m_scaleX = 1.0f - (p / 0.5f);
+            // first half: shrink from 1 -> 0 with ease-in
+            float t = p / 0.5f; // 0..1
+            eased = 1.0f - (t * t); // ease-in quadratic
+            m_scaleX = eased;
         } else {
-            // second half: expand from 0 -> 1
-            m_scaleX = (p - 0.5f) / 0.5f;
+            // second half: expand from 0 -> 1 with ease-out
+            float t = (p - 0.5f) / 0.5f; // 0..1
+            eased = t * (2.0f - t); // ease-out quadratic
+            m_scaleX = eased;
         }
 
         // Finish animation when progress reaches 1.0

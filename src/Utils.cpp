@@ -290,3 +290,11 @@ Vector2 Utils::calculateOptimalCardSize(int gridWidth, int gridHeight,
     
     return Vector2{cardWidth, cardHeight};
 }
+
+// === Drawing utilities ===
+void Utils::drawRoundedRectangleLines(Rectangle rec, float roundness, int segments, float lineThick, Color color) {
+    // Use DrawRectangleLinesEx as a fallback if DrawRectangleRoundedLines is not available
+    // This is a simple implementation that draws straight lines
+    // For a proper rounded rectangle, we'd need to draw arcs, but this will work for now
+    DrawRectangleLinesEx(rec, lineThick, color);
+}

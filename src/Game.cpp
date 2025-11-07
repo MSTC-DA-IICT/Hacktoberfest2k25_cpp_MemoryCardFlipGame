@@ -5,8 +5,8 @@
 
 #include "../include/Game.h"
 #include "../include/Utils.h"
+#include <algorithm>
 #include <cmath>
-#include <iostream>
 
 // --------------------- Constructor & Destructor ---------------------
 
@@ -20,8 +20,10 @@ Game::Game(int screenWidth, int screenHeight)
       m_selectedDifficulty(0),
       m_totalMoves(0),
       m_matchesFound(0),
-    m_gameWon(false),
-    m_soundEnabled(true),
+      m_gameWon(false),
+      m_soundEnabled(true),
+      m_shufflesUsed(0),
+      m_shuffleCooldownTimer(0.0f),
       m_gameBoard(nullptr),
       m_audioManager(nullptr),
       m_scoreManager(nullptr),
@@ -100,14 +102,18 @@ void Game::updateDifficultySelection() {
 }
 
 void Game::updatePlaying() {
-    // If the board is running a pre-game shuffle animation, only update the board
+    float deltaTime = GetFrameTime();
+
+    if (m_shuffleCooldownTimer > 0.0f) {
+        m_shuffleCooldownTimer = std::max(0.0f, m_shuffleCooldownTimer - deltaTime);
+    }
+
+    // If the board is running a shuffle animation, only update the board
     // and prevent player input until the shuffle finishes. Start the game timer
     // once shuffling completes.
     if (m_gameBoard && m_gameBoard->isShuffling()) {
-        bool wasShuffling = m_gameBoard->isShuffling();
-        m_gameBoard->update(GetFrameTime());
-        // If shuffle completed this frame, start the game timer
-        if (wasShuffling && !m_gameBoard->isShuffling() && m_gameStartTime <= 0.0f) {
+        m_gameBoard->update(deltaTime);
+        if (!m_gameBoard->isShuffling() && m_gameStartTime <= 0.0f) {
             m_gameStartTime = GetTime();
         }
         return; // don't process input while shuffling
@@ -116,11 +122,14 @@ void Game::updatePlaying() {
     // Normal playing input/update
     handlePlayingInput();
 
-    if (m_gameBoard)
-        m_gameBoard->update(GetFrameTime());
+    if (m_gameBoard) {
+        m_gameBoard->update(deltaTime);
+    }
 
     // Ensure timer started (in case shuffle was disabled)
-    if (m_gameStartTime <= 0.0f) m_gameStartTime = GetTime();
+    if (m_gameStartTime <= 0.0f) {
+        m_gameStartTime = GetTime();
+    }
 
     checkWinCondition();
 }
@@ -198,10 +207,6 @@ void Game::drawMainMenu() {
         drawEnhancedButton(m_mainMenuItems[i], buttonRect, isSelected);
     }
     
-    // Draw credits at bottom
-    const char* credits = "Created by Yash Gangwani with love for - MSTC DA-IICT";
-    int creditsWidth = MeasureText(credits, 16);
-    DrawText(credits, m_screenWidth / 2 - creditsWidth / 2, m_screenHeight - 40, 16, ColorAlpha(WHITE, 0.6f));
 }
 
 void Game::drawDifficultySelection() {
@@ -247,14 +252,16 @@ void Game::drawEnhancedHUD() {
     int totalPairs = (static_cast<int>(m_difficulty) / 2);
     
     // Moves counter
-    DrawRectangleRounded({15, 15, 150, 50}, 0.3f, 8, ColorAlpha(DARKBLUE, 0.8f));
-    DrawRectangleRoundedLines({15, 15, 150, 50}, 0.3f, 8, 2, SKYBLUE);
+    Rectangle movesRect = {15, 15, 150, 50};
+    DrawRectangleRounded(movesRect, 0.3f, 8, ColorAlpha(DARKBLUE, 0.8f));
+    Utils::drawRoundedRectangleLines(movesRect, 0.3f, 8, 2, SKYBLUE);
     std::string movesStr = "MOVES: " + std::to_string(m_totalMoves);
     DrawText(movesStr.c_str(), 30, 30, 24, WHITE);
     
     // Matches counter with progress
-    DrawRectangleRounded({180, 15, 180, 50}, 0.3f, 8, ColorAlpha(DARKGREEN, 0.8f));
-    DrawRectangleRoundedLines({180, 15, 180, 50}, 0.3f, 8, 2, LIME);
+    Rectangle matchesRect = {180, 15, 180, 50};
+    DrawRectangleRounded(matchesRect, 0.3f, 8, ColorAlpha(DARKGREEN, 0.8f));
+    Utils::drawRoundedRectangleLines(matchesRect, 0.3f, 8, 2, LIME);
     std::string matchesStr = "PAIRS: " + std::to_string(matches) + "/" + std::to_string(totalPairs);
     DrawText(matchesStr.c_str(), 195, 30, 24, WHITE);
 
@@ -271,13 +278,82 @@ void Game::drawEnhancedHUD() {
     float elapsed = getElapsedTime();
     std::string timerText = Utils::formatTime(elapsed);
     
-    DrawRectangleRounded({m_screenWidth - 170.0f, 15, 155, 50}, 0.3f, 8, ColorAlpha(MAROON, 0.8f));
-    DrawRectangleRoundedLines({m_screenWidth - 170.0f, 15, 155, 50}, 0.3f, 8, 2, RED);
+    Rectangle timerRect = {m_screenWidth - 170.0f, 15, 155, 50};
+    DrawRectangleRounded(timerRect, 0.3f, 8, ColorAlpha(MAROON, 0.8f));
+    Utils::drawRoundedRectangleLines(timerRect, 0.3f, 8, 2, RED);
     DrawText("TIME", m_screenWidth - 155, 22, 16, LIGHTGRAY);
     DrawText(timerText.c_str(), m_screenWidth - 155, 38, 28, GOLD);
     
+    // Combo display (animated)
+    if (m_gameBoard) {
+        int comboCount = m_gameBoard->getComboCount();
+        float comboTimer = m_gameBoard->getComboDisplayTime();
+        if (comboCount > 1 && comboTimer > 0.0f) {
+            float comboScale = 1.0f + 0.2f * sin(GetTime() * 8.0f);
+            int comboMultiplier = std::min(comboCount, 5);
+            std::string comboText = std::to_string(comboMultiplier) + "x COMBO";
+            int fontSize = static_cast<int>(32 * comboScale);
+            int textWidth = MeasureText(comboText.c_str(), fontSize);
+            int comboX = m_screenWidth / 2 - textWidth / 2;
+            int comboY = 100;
+
+            float fade = std::min(1.0f, comboTimer / 2.0f);
+
+            // Shadow
+            DrawText(comboText.c_str(), comboX + 2, comboY + 2, fontSize, ColorAlpha(BLACK, 0.5f * fade));
+            // Glow effect
+            DrawText(comboText.c_str(), comboX, comboY, fontSize, ColorAlpha(ORANGE, 0.8f * fade));
+            // Main text
+            DrawText(comboText.c_str(), comboX, comboY, fontSize, ColorAlpha(GOLD, fade));
+            std::string multiplierHint = "Score multiplier " + std::to_string(comboMultiplier) + "x";
+            DrawText(multiplierHint.c_str(), comboX, comboY + fontSize + 6, 18, ColorAlpha(WHITE, 0.7f * fade));
+        }
+    }
+    
+    // Hint system display
+    if (m_gameBoard) {
+        int hintsRemaining = m_gameBoard->getHintsRemaining();
+        float hintCooldown = m_gameBoard->getHintCooldown();
+        bool canUse = m_gameBoard->canUseHint();
+        
+        // Hint counter and cooldown
+        Rectangle hintRect = {m_screenWidth - 200.0f, static_cast<float>(m_screenHeight - 100), 180.0f, 80.0f};
+        DrawRectangleRounded(hintRect, 0.3f, 8, ColorAlpha(DARKPURPLE, 0.8f));
+        Utils::drawRoundedRectangleLines(hintRect, 0.3f, 8, 2, VIOLET);
+        
+        std::string hintText = "HINTS: " + std::to_string(hintsRemaining);
+        DrawText(hintText.c_str(), m_screenWidth - 190, m_screenHeight - 90, 20, WHITE);
+        
+        if (canUse) {
+            DrawText("Press H to use", m_screenWidth - 190, m_screenHeight - 65, 16, LIME);
+            DrawText("Hint reveals a", m_screenWidth - 190, m_screenHeight - 50, 14, LIGHTGRAY);
+            DrawText("matching pair", m_screenWidth - 190, m_screenHeight - 35, 14, LIGHTGRAY);
+        } else if (hintCooldown > 0.0f) {
+            std::string cooldownText = "Cooldown: " + std::to_string(static_cast<int>(hintCooldown)) + "s";
+            DrawText(cooldownText.c_str(), m_screenWidth - 190, m_screenHeight - 65, 16, ColorAlpha(YELLOW, 0.7f));
+        } else {
+            DrawText("No hints left", m_screenWidth - 190, m_screenHeight - 65, 16, ColorAlpha(RED, 0.7f));
+        }
+    }
+
+    // Shuffle ability display (bottom-left)
+    Rectangle shuffleRect = {15.0f, static_cast<float>(m_screenHeight - 100), 220.0f, 80.0f};
+    DrawRectangleRounded(shuffleRect, 0.3f, 8, ColorAlpha(DARKBROWN, 0.85f));
+    Utils::drawRoundedRectangleLines(shuffleRect, 0.3f, 8, 2, ColorAlpha(BEIGE, 0.9f));
+    DrawText("RESHUFFLE", 30, m_screenHeight - 90, 20, BEIGE);
+    if (canTriggerShuffle()) {
+        DrawText("Press R to mix cards", 30, m_screenHeight - 65, 16, LIME);
+    } else {
+        int cooldown = static_cast<int>(std::ceil(m_shuffleCooldownTimer));
+        std::string cooldownText = "Cooldown: " + std::to_string(cooldown) + "s";
+        DrawText(cooldownText.c_str(), 30, m_screenHeight - 65, 16, ColorAlpha(WHITE, 0.7f));
+    }
+    std::string usedText = "Used: " + std::to_string(m_shufflesUsed);
+    DrawText(usedText.c_str(), 30, m_screenHeight - 40, 14, ColorAlpha(WHITE, 0.6f));
+    
     // Bottom hint
-    DrawText("P - Pause", m_screenWidth - 150, m_screenHeight - 35, 18, ColorAlpha(WHITE, 0.6f));
+    DrawText("P-Pause | H-Hint (-points, cooldown) | R-Reshuffle (-points, cooldown)",
+             40, m_screenHeight - 20, 16, ColorAlpha(WHITE, 0.6f));
 }
 
 void Game::drawPaused() {
@@ -291,7 +367,7 @@ void Game::drawPaused() {
     // Pause panel
     Rectangle panel = {m_screenWidth / 2.0f - 250, m_screenHeight / 2.0f - 200, 500, 400};
     DrawRectangleRounded(panel, 0.1f, 16, ColorAlpha(DARKBLUE, 0.95f));
-    DrawRectangleRoundedLines(panel, 0.1f, 16, 4, SKYBLUE);
+    Utils::drawRoundedRectangleLines(panel, 0.1f, 16, 4, SKYBLUE);
     
     // Pause text
     const char* pauseText = "PAUSED";
@@ -321,15 +397,15 @@ void Game::drawGameOver() {
     // Victory panel
     Rectangle panel = {m_screenWidth / 2.0f - 300, m_screenHeight / 2.0f - 250, 600, 500};
     DrawRectangleRounded(panel, 0.1f, 16, ColorAlpha(DARKGREEN, 0.95f));
-    DrawRectangleRoundedLines(panel, 0.1f, 16, 4, LIME);
+    Utils::drawRoundedRectangleLines(panel, 0.1f, 16, 4, LIME);
     
     // Animated stars/particles
     float time = GetTime();
     for (int i = 0; i < 30; ++i) {
         float angle = (i * 12.0f + time * 50) * DEG2RAD;
         float dist = 150 + sin(time * 2 + i) * 30;
-        float x = m_screenWidth / 2 + cos(angle) * dist;
-        float y = m_screenHeight / 2 - 100 + sin(angle) * dist;
+        float x = m_screenWidth / 2.0f + cos(angle) * dist;
+        float y = m_screenHeight / 2.0f - 100 + sin(angle) * dist;
         float size = 3 + sin(time * 3 + i) * 2;
         DrawCircle(static_cast<int>(x), static_cast<int>(y), size, ColorAlpha(GOLD, 0.8f));
     }
@@ -379,7 +455,7 @@ void Game::drawSettings() {
     // Settings panel
     Rectangle panel = {m_screenWidth / 2.0f - 300, 200, 600, 400};
     DrawRectangleRounded(panel, 0.1f, 16, ColorAlpha(DARKBLUE, 0.8f));
-    DrawRectangleRoundedLines(panel, 0.1f, 16, 3, SKYBLUE);
+    Utils::drawRoundedRectangleLines(panel, 0.1f, 16, 3, SKYBLUE);
     
     DrawText("Settings", m_screenWidth / 2 - 40, m_screenHeight / 2 - 80, 28, WHITE);
 
@@ -406,7 +482,7 @@ void Game::drawHighScores() {
     // Draw panel
     Rectangle panel = { m_screenWidth / 2.0f - 300, 180, 600, 420 };
     DrawRectangleRounded(panel, 0.1f, 16, ColorAlpha(DARKBLUE, 0.9f));
-    DrawRectangleRoundedLines(panel, 0.1f, 16, 3, SKYBLUE);
+    Utils::drawRoundedRectangleLines(panel, 0.1f, 16, 3, SKYBLUE);
 
     // Show high score
     int high = m_scoreManager ? m_scoreManager->getHighScore() : 0;
@@ -439,11 +515,11 @@ void Game::drawEnhancedButton(const std::string& text, Rectangle bounds, bool is
     
     // Glow effect for selected
     if (isSelected) {
-        DrawRectangleRoundedLines(animBounds, 0.2f, 16, 3, GOLD);
-        DrawRectangleRoundedLines({animBounds.x - 2, animBounds.y - 2, animBounds.width + 4, animBounds.height + 4}, 
-                                  0.2f, 16, 1, ColorAlpha(GOLD, 0.5f));
+        Utils::drawRoundedRectangleLines(animBounds, 0.2f, 16, 3, GOLD);
+        Rectangle outerBounds = {animBounds.x - 2, animBounds.y - 2, animBounds.width + 4, animBounds.height + 4};
+        Utils::drawRoundedRectangleLines(outerBounds, 0.2f, 16, 1, ColorAlpha(GOLD, 0.5f));
     } else {
-        DrawRectangleRoundedLines(animBounds, 0.2f, 16, 2, Utils::adjustBrightness(baseColor, 1.5f));
+        Utils::drawRoundedRectangleLines(animBounds, 0.2f, 16, 2, Utils::adjustBrightness(baseColor, 1.5f));
     }
     
     // Text with shadow
@@ -503,6 +579,8 @@ void Game::startNewGame(Difficulty difficulty) {
     m_totalMoves = 0;
     m_matchesFound = 0;
     m_gameWon = false;
+    m_shufflesUsed = 0;
+    m_shuffleCooldownTimer = SHUFFLE_INITIAL_DELAY_SECONDS;
     // Start pre-game shuffle animation; game timer will begin after shuffle completes
     if (m_gameBoard) {
         m_gameBoard->startShuffle(1.8f); // ~1.8 seconds of quick reveals
@@ -551,13 +629,39 @@ float Game::getElapsedTime() const {
     return GetTime() - m_gameStartTime;
 }
 
+bool Game::canTriggerShuffle() const {
+    if (!m_gameBoard) {
+        return false;
+    }
+    if (m_gameBoard->isShuffling() || m_gameBoard->allMatched() || m_gameBoard->isHintActive()) {
+        return false;
+    }
+    return m_shuffleCooldownTimer <= 0.0f;
+}
+
+void Game::triggerShuffle() {
+    if (!m_gameBoard) {
+        return;
+    }
+
+    m_gameBoard->startShuffle(1.35f);
+    if (m_gameBoard->isShuffling()) {
+        m_shuffleCooldownTimer = SHUFFLE_COOLDOWN_SECONDS;
+        ++m_shufflesUsed;
+        if (m_scoreManager) {
+            m_scoreManager->addMismatch();
+        }
+        Utils::logInfo("Reshuffle triggered");
+    }
+}
+
 void Game::drawButton(const std::string& text, Rectangle bounds, bool isSelected, Color color) {
     drawEnhancedButton(text, bounds, isSelected, color);
 }
 
 void Game::drawCenteredText(const std::string& text, int y, int fontSize, Color color, Font font) {
     int textWidth = MeasureTextEx(font, text.c_str(), fontSize, 1).x;
-    DrawTextEx(font, text.c_str(), {m_screenWidth / 2.0f - textWidth / 2, (float)y}, fontSize, 1, color);
+    DrawTextEx(font, text.c_str(), {m_screenWidth / 2.0f - textWidth / 2.0f, (float)y}, fontSize, 1, color);
 }
 
 void Game::drawGameStats() {
@@ -690,6 +794,20 @@ void Game::handlePlayingInput() {
     if (IsKeyPressed(KEY_P)) {
         pauseGame();
         return;
+    }
+    
+    // Handle hint system (H key)
+    if (IsKeyPressed(KEY_H) && m_gameBoard) {
+        m_gameBoard->showHint();
+    }
+
+    // Trigger reshuffle ability with R key
+    if (IsKeyPressed(KEY_R) && m_gameBoard) {
+        if (canTriggerShuffle()) {
+            triggerShuffle();
+        } else {
+            Utils::logDebug("Shuffle requested but unavailable (cooldown or animation)");
+        }
     }
     
     // Handle card clicks
