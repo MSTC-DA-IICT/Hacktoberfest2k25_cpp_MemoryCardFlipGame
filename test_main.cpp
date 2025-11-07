@@ -1,4 +1,5 @@
+#include<stdio.h>
 int main() {
-    // TODO: Add tests here
+    printf("Hello Duniya");
     return 0;
 }
